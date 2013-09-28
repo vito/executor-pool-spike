@@ -122,8 +122,8 @@ B: sleep 49 * n, volunteer for 100, start
 ## Initial Findings
 
 Hesitation is the most sensitive part. If you wait too long, it takes minutes
-to start an app. If you don't wait long enough, your instances are less evenly
-balanced.
+to start an app. If you don't wait long enough, your instances may be less
+evenly balanced, and more subject to network latency.
 
 100 instances, waiting 1 second per instance:
 
