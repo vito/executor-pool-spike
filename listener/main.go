@@ -8,13 +8,9 @@ import (
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/vito/yagnats"
 
+	"github.com/vito/executor-pool-spike/messages"
 	"github.com/vito/executor-pool-spike/node"
 )
-
-type appStart struct {
-	Guid  string `json:"guid"`
-	Index int    `json:"index"`
-}
 
 func main() {
 	store := etcd.NewClient()
@@ -33,7 +29,7 @@ func main() {
 	node := node.NewNode(store)
 
 	_, err = nats.Subscribe("app.start", func(msg *yagnats.Message) {
-		var startMsg appStart
+		var startMsg messages.AppStart
 		err := json.Unmarshal([]byte(msg.Payload), &startMsg)
 		if err != nil {
 			log.Println("failed to unmarshal", msg.Payload)

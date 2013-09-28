@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"time"
@@ -9,14 +10,16 @@ import (
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/nu7hatch/gouuid"
 	"github.com/vito/yagnats"
+
+	"github.com/vito/executor-pool-spike/messages"
 )
 
-type appStart struct {
-	Guid  string `json:"guid"`
-	Index int    `json:"index"`
-}
+var app = flag.String("app", "", "app identifier (default: random guid)")
+var instances = flag.Int("instances", 100, "instances to start")
 
 func main() {
+	flag.Parse()
+
 	nats := yagnats.NewClient()
 
 	natsInfo := &yagnats.ConnectionInfo{
@@ -28,19 +31,28 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	guid, err := uuid.NewV4()
-	if err != nil {
-		log.Fatalln(err)
+	if *app == "" {
+		guid, err := uuid.NewV4()
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		*app = guid.String()
 	}
 
 	store := etcd.NewClient()
 
 	start := time.Now()
 
+	existing, err := store.Get(fmt.Sprintf("/apps/%s", *app))
+	if err != nil {
+		log.Println(err)
+	}
+
 	go func() {
-		for i := 0; i < 100; i++ {
-			start := appStart{
-				Guid:  guid.String(),
+		for i := len(existing); i < *instances; i++ {
+			start := messages.AppStart{
+				Guid:  *app,
 				Index: i,
 			}
 
@@ -54,14 +66,14 @@ func main() {
 	}()
 
 	for {
-		res, err := store.Get(fmt.Sprintf("/apps/%s", guid))
+		res, err := store.Get(fmt.Sprintf("/apps/%s", *app))
 		if err != nil {
 			log.Println(err)
 		}
 
 		log.Println("entries:", len(res))
 
-		if len(res) == 100 {
+		if len(res) == *instances {
 			break
 		}
 	}

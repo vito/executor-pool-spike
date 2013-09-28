@@ -2,7 +2,7 @@ package node
 
 import (
 	"fmt"
-	"log"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-etcd/etcd"
@@ -60,34 +60,34 @@ func (node Node) handleStarts() {
 
 		indices, found := node.registry[instance.App]
 		if found {
-			log.Println("waiting", len(indices), "seconds")
+			fmt.Println("waiting", len(indices), "seconds")
 			time.Sleep(time.Duration(len(indices)) * 10 * time.Millisecond)
 		}
 
-		log.Println("volunteering", instance)
+		fmt.Println("volunteering", instance)
 		ok := node.volunteer(instance)
 		if !ok {
-			log.Println("failed", instance)
+			fmt.Println("failed", instance)
 			// someone else got it
 			continue
 		}
 
-		log.Println("started!", instance)
+		fmt.Println("started!", instance)
 
 		node.registerInstance(instance)
 	}
 }
 
 func (node Node) LogRegistry() {
-	for app, indices := range node.registry {
-		log.Println("running", app, len(indices))
+	for _, indices := range node.registry {
+		fmt.Printf("running %3d: %s\n", len(indices), strings.Repeat("▇", len(indices)))
 	}
 }
 
 func (node Node) volunteer(instance Instance) bool {
 	res, err := node.store.Set(instance.StoreKey(), "ok", 0)
 	if err != nil {
-		log.Println("Error setting key:", err)
+		fmt.Println("error setting key:", err)
 		return false
 	}
 
