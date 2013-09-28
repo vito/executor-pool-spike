@@ -86,16 +86,16 @@ balanced.
 
 ```
 distribution:
-12:04:02 node2.1  | 2013/09/28 12:04:02 running 10
-12:04:03 node1.1  | 2013/09/28 12:04:03 running 10
-12:04:03 node4.1  | 2013/09/28 12:04:03 running 12
-12:04:03 node5.1  | 2013/09/28 12:04:03 running 9
-12:04:03 node3.1  | 2013/09/28 12:04:03 running 9
-12:04:03 node6.1  | 2013/09/28 12:04:03 running 9
-12:04:03 node7.1  | 2013/09/28 12:04:03 running 11
-12:04:03 node8.1  | 2013/09/28 12:04:03 running 11
-12:04:03 node10.1 | 2013/09/28 12:04:03 running 9
-12:04:03 node9.1  | 2013/09/28 12:04:03 running 10
+node2.1  | running 10
+node1.1  | running 10
+node4.1  | running 12
+node5.1  | running 9
+node3.1  | running 9
+node6.1  | running 9
+node7.1  | running 11
+node8.1  | running 11
+node10.1 | running 9
+node9.1  | running 10
 
 time to start: 8m10.312597514s
 ```
@@ -104,22 +104,42 @@ time to start: 8m10.312597514s
 
 ```
 distribution:
-12:05:15 node2.1  | 2013/09/28 12:05:15 running 12
-12:05:15 node1.1  | 2013/09/28 12:05:15 running 10
-12:05:15 node4.1  | 2013/09/28 12:05:15 running 8
-12:05:15 node3.1  | 2013/09/28 12:05:15 running 9
-12:05:15 node5.1  | 2013/09/28 12:05:15 running 13
-12:05:15 node7.1  | 2013/09/28 12:05:15 running 10
-12:05:15 node6.1  | 2013/09/28 12:05:15 running 10
-12:05:15 node8.1  | 2013/09/28 12:05:15 running 8
-12:05:15 node9.1  | 2013/09/28 12:05:15 running 10
-12:05:15 node10.1 | 2013/09/28 12:05:15 running 10
+node2.1  | running 12
+node1.1  | running 10
+node4.1  | running 8
+node3.1  | running 9
+node5.1  | running 13
+node7.1  | running 10
+node6.1  | running 10
+node8.1  | running 8
+node9.1  | running 10
+node10.1 | running 10
 
 time to start: 5.319348414s
 ```
 
-As you can see 10 milliseconds seems to be enough to achieve the 3 goals:
-quick startup time, spread across many nodes, with roughly even distribution.
+100 instances, waiting 1 millisecond per instance:
+
+```
+distribution:
+node4.1  | running 10
+node3.1  | running 10
+node1.1  | running 12
+node2.1  | running 9
+node5.1  | running 10
+node6.1  | running 8
+node7.1  | running 10
+node10.1 | running 10
+node8.1  | running 12
+node9.1  | running 9
+
+time to start: 735.750816ms
+```
+
+At least on a local machine, sleeping for smaller amounts of time does not
+appear to adversely affect distribution, and has the most reward. However
+once you're down in the millisecond range this may become subject to network
+latency.
 
 Also, even with the most naive approach of sleeping 1 second per instance, you
 at least immediately have 1 instance starting on every node. This means if you
