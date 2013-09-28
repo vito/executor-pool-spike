@@ -13,10 +13,16 @@ git clone git@github.com:vito/executor-pool-spike.git src/github.com/vito/execut
 cd src/github.com/vito/executor-pool-spike
 go get -v ./...
 
+# start nats
+nats-server -d
+
+# start etcd
+etcd
+
 # start 10 nodes
 foreman start
 
-# in another tab:
+# in another tab, send 100 app.starts:
 go run spammer/main.go
 
 # check the distribution in the logs of 'foreman start'
