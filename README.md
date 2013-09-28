@@ -115,8 +115,8 @@ B: sleep 2 * n, volunteer for 6, start
 
 ...
 
-A: sleep 49 * n, start 99th
-B: sleep 49 * n, start 100th
+A: sleep 50 * n, volunteer for 100, fail
+B: sleep 49 * n, volunteer for 100, start
 ```
 
 ## Initial Findings
