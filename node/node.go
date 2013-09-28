@@ -60,19 +60,20 @@ func (node Node) handleStarts() {
 
 		indices, found := node.registry[instance.App]
 		if found {
-			fmt.Println("waiting", len(indices), "seconds")
-			time.Sleep(time.Duration(len(indices)) * 10 * time.Millisecond)
+			delay := time.Duration(len(indices)) * time.Millisecond
+
+			fmt.Println("\x1b[33mhesitating\x1b[0m", delay)
+
+			time.Sleep(delay)
 		}
 
-		fmt.Println("volunteering", instance)
 		ok := node.volunteer(instance)
 		if !ok {
-			fmt.Println("failed", instance)
-			// someone else got it
+			fmt.Println("\x1b[31mdropped\x1b[0m", instance.Index)
 			continue
 		}
 
-		fmt.Println("started!", instance)
+		fmt.Println("\x1b[32mstarted\x1b[0m", instance.Index)
 
 		node.registerInstance(instance)
 	}
@@ -80,7 +81,7 @@ func (node Node) handleStarts() {
 
 func (node Node) LogRegistry() {
 	for _, indices := range node.registry {
-		fmt.Printf("running %3d: %s\n", len(indices), strings.Repeat("▇", len(indices)))
+		fmt.Printf("\x1b[34mrunning\x1b[0m %3d: %s\n", len(indices), strings.Repeat("▇", len(indices)))
 	}
 }
 
