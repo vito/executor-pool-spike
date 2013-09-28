@@ -131,64 +131,88 @@ Hesitation is the most sensitive part. If you wait too long, it takes minutes
 to start an app. If you don't wait long enough, your instances may be less
 evenly balanced, and more subject to network latency.
 
-100 instances, waiting 1 second per instance:
+### 100 instances, waiting 1 second per instance
+
+This takes a long time but is pretty uniform.
 
 ```
 distribution:
-node2.1  | running 10
-node1.1  | running 10
-node4.1  | running 12
-node5.1  | running 9
-node3.1  | running 9
-node6.1  | running 9
-node7.1  | running 11
-node8.1  | running 11
-node10.1 | running 9
-node9.1  | running 10
+node3.1  | running  10: ▇▇▇▇▇▇▇▇▇▇
+node2.1  | running  11: ▇▇▇▇▇▇▇▇▇▇▇
+node1.1  | running  11: ▇▇▇▇▇▇▇▇▇▇▇
+node4.1  | running  12: ▇▇▇▇▇▇▇▇▇▇▇▇
+node5.1  | running   9: ▇▇▇▇▇▇▇▇▇
+node6.1  | running   8: ▇▇▇▇▇▇▇▇
+node7.1  | running   9: ▇▇▇▇▇▇▇▇▇
+node8.1  | running  11: ▇▇▇▇▇▇▇▇▇▇▇
+node10.1 | running  10: ▇▇▇▇▇▇▇▇▇▇
+node9.1  | running   9: ▇▇▇▇▇▇▇▇▇
 
-time to start: 8m10.312597514s
+time to start: 8m9.174275195s
 ```
 
-100 instances, waiting 10 milliseconds per instance:
+### 100 instances, waiting 10 milliseconds per instance
 
-```
-distribution:
-node2.1  | running 12
-node1.1  | running 10
-node4.1  | running 8
-node3.1  | running 9
-node5.1  | running 13
-node7.1  | running 10
-node6.1  | running 10
-node8.1  | running 8
-node9.1  | running 10
-node10.1 | running 10
-
-time to start: 5.319348414s
-```
-
-100 instances, waiting 1 millisecond per instance:
+This was much faster and stayed pretty uniform.
 
 ```
 distribution:
-node4.1  | running 10
-node3.1  | running 10
-node1.1  | running 12
-node2.1  | running 9
-node5.1  | running 10
-node6.1  | running 8
-node7.1  | running 10
-node10.1 | running 10
-node8.1  | running 12
-node9.1  | running 9
+node1.1  | running  12: ▇▇▇▇▇▇▇▇▇▇▇▇
+node2.1  | running   9: ▇▇▇▇▇▇▇▇▇
+node4.1  | running  10: ▇▇▇▇▇▇▇▇▇▇
+node5.1  | running   8: ▇▇▇▇▇▇▇▇
+node3.1  | running  10: ▇▇▇▇▇▇▇▇▇▇
+node6.1  | running  10: ▇▇▇▇▇▇▇▇▇▇
+node7.1  | running  10: ▇▇▇▇▇▇▇▇▇▇
+node10.1 | running   9: ▇▇▇▇▇▇▇▇▇
+node9.1  | running  11: ▇▇▇▇▇▇▇▇▇▇▇
+node8.1  | running  11: ▇▇▇▇▇▇▇▇▇▇▇
 
-time to start: 735.750816ms
+time to start: 5.140204818s
 ```
+
+### 100 instances, waiting 1 millisecond per instance
+
+This was much faster without any discernable downsides.
+
+```
+distribution:
+node3.1  | running  10: ▇▇▇▇▇▇▇▇▇▇
+node1.1  | running   9: ▇▇▇▇▇▇▇▇▇
+node2.1  | running   9: ▇▇▇▇▇▇▇▇▇
+node7.1  | running   8: ▇▇▇▇▇▇▇▇
+node4.1  | running  11: ▇▇▇▇▇▇▇▇▇▇▇
+node5.1  | running   9: ▇▇▇▇▇▇▇▇▇
+node10.1 | running   9: ▇▇▇▇▇▇▇▇▇
+node6.1  | running  11: ▇▇▇▇▇▇▇▇▇▇▇
+node9.1  | running  12: ▇▇▇▇▇▇▇▇▇▇▇▇
+node8.1  | running  12: ▇▇▇▇▇▇▇▇▇▇▇▇
+
+time to start: 708.96801ms
+```
+
+### 100 instances, NO DELAY (control)
+
+Yeah, don't do that. Half the nodes didn't even get a chance.
+
+```
+distribution:
+node2.1  | running   2: ▇▇
+node3.1  | running   3: ▇▇▇
+node1.1  | running   4: ▇▇▇▇
+node6.1  | running  56: ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
+node8.1  | running  35: ▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇
+
+time to start: 399.383626ms
+```
+
+### Interpretation
 
 At least on a local machine, sleeping for smaller amounts of time does not
 appear to adversely affect distribution, and has the most reward. However
 once you're down in the millisecond range this may become subject to network
-latency.
+latency. The worst case is that you have no delay; doing this got nowhere
+close to an even spread, and some didn't even get any instances.
 
 Also, even with the most naive approach of sleeping 1 second per instance, you
 at least immediately have 1 instance starting on every node. This means if you
