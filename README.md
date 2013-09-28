@@ -29,7 +29,7 @@ and app placement, and it is left to orchestration components (the CC) to
 determine where to place each instance of an app they want to start.
 
 Ideally, the orchestrator is dead simple, and just publishes its intent:
-"start an isntance", and relies on the system to do the heavy lifting. This
+"start an instance", and relies on the system to do the heavy lifting. This
 means the business logic of app placement and load balancing has to be done
 elsewhere.
 
@@ -62,11 +62,13 @@ an instance as soon as they try, by registering an entry in etcd.
 
 * `volunteering` - a node writing their intention to start an instance
 * `hesitating` - a node waiting before volunteering, to achieve load balancing
+  and spreading of application instances
 
-Volunteering is defined as setting a key of `/apps/<guid>/<index>`. In the
-simplest model, all nodes try to set the key, and the one that actually wrote
-it knows that he's the one to start it. The rest just drop the request on the
-floor.
+Volunteering is defined as setting a value at the key `/apps/<guid>/<index>`.
+In the simplest model, all nodes try to set the key, and the one that actually
+wrote it knows that he's the one to start it. This is possible because etcd
+returns a `NewKey` value in the response; this should only be `true` for one
+of them. The rest just drop the request on the floor.
 
 Hesitating is a concept used for balancing instances; one approach is for
 a node that knows he already has 10 instances of an app to wait 10 seconds
@@ -77,12 +79,47 @@ longer start times for more instances.
 ## Initial Findings
 
 Hesitation is the most sensitive part. If you wait too long, it takes minutes
-to start an app. If you don't wait long enough, your instances are roughly
+to start an app. If you don't wait long enough, your instances are less evenly
 balanced.
 
-Interestingly, "hesitation" also becomes a natural place to rate-limit start
-requests that are performed by the Executor, to improve stability and remove
-the possiblity of "start storms".
+100 instances, waiting 1 second per instance:
+
+```
+distribution:
+12:04:02 node2.1  | 2013/09/28 12:04:02 running 10
+12:04:03 node1.1  | 2013/09/28 12:04:03 running 10
+12:04:03 node4.1  | 2013/09/28 12:04:03 running 12
+12:04:03 node5.1  | 2013/09/28 12:04:03 running 9
+12:04:03 node3.1  | 2013/09/28 12:04:03 running 9
+12:04:03 node6.1  | 2013/09/28 12:04:03 running 9
+12:04:03 node7.1  | 2013/09/28 12:04:03 running 11
+12:04:03 node8.1  | 2013/09/28 12:04:03 running 11
+12:04:03 node10.1 | 2013/09/28 12:04:03 running 9
+12:04:03 node9.1  | 2013/09/28 12:04:03 running 10
+
+time to start: 8m10.312597514s
+```
+
+100 instances, waiting 10 milliseconds per instance:
+
+```
+distribution:
+12:05:15 node2.1  | 2013/09/28 12:05:15 running 12
+12:05:15 node1.1  | 2013/09/28 12:05:15 running 10
+12:05:15 node4.1  | 2013/09/28 12:05:15 running 8
+12:05:15 node3.1  | 2013/09/28 12:05:15 running 9
+12:05:15 node5.1  | 2013/09/28 12:05:15 running 13
+12:05:15 node7.1  | 2013/09/28 12:05:15 running 10
+12:05:15 node6.1  | 2013/09/28 12:05:15 running 10
+12:05:15 node8.1  | 2013/09/28 12:05:15 running 8
+12:05:15 node9.1  | 2013/09/28 12:05:15 running 10
+12:05:15 node10.1 | 2013/09/28 12:05:15 running 10
+
+time to start: 5.319348414s
+```
+
+As you can see 10 milliseconds seems to be enough to achieve the 3 goals:
+quick startup time, spread across many nodes, with roughly even distribution.
 
 Also, even with the most naive approach of sleeping 1 second per instance, you
 at least immediately have 1 instance starting on every node. This means if you
@@ -91,6 +128,14 @@ over time.
 
 
 ## Next Steps
+
+### Rate-Limiting & Preventing Start Storms
+
+"Hesitation" becomes a natural place to rate-limit start requests that are
+performed by the Executor, to improve stability and remove the possiblity of
+a storm of start requests taking down your nodes.
+
+### Evacuation & Crash Recovery
 
 If in the act of volunteering, the node wrote to the key enough information
 for other nodes to start the same instance (like the message the node
