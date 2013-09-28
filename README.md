@@ -70,11 +70,54 @@ wrote it knows that he's the one to start it. This is possible because etcd
 returns a `NewKey` value in the response; this should only be `true` for one
 of them. The rest just drop the request on the floor.
 
-Hesitating is a concept used for balancing instances; one approach is for
-a node that knows he already has 10 instances of an app to wait 10 seconds
-before volunteering. This leads to even balancing in the pool at the cost of
-longer start times for more instances.
+Hesitating is a technique used for balancing instances without having to know
+the layout of the rest of the pool. For example, a node that already has 10
+instances of an app can know to wait 10 seconds before volunteering. If every
+node does this, application instances will naturally balance themselves across
+the pool, at the cost of longer start times for higher instance counts.
 
+With one node, starting 100 instances will have the following flow (request
+handling over time moves down, n is some time scale like milliseconds):
+
+```
+-> sleep 0 * n, volunteer for 1, start
+-> sleep 1 * n, volunteer for 2, start
+-> sleep 2 * n, volunteer for 3, start
+-> ...
+-> sleep 99 * n, volunteer for 100, start
+```
+
+As you can tell, this is not optimal, but it at least rate limits the 100
+starts, and the node won't fall over under load.
+
+Adding another node dramatically reduces the time it takes, as they'll
+effectively halve the instances they have and thus halve the amount of time
+they hesitate.
+
+```
+A: sleep 0 * n, volunteer for 1, start
+B: sleep 0 * n, volunteer for 1, fail
+
+A: sleep 1 * n, volunteer for 2, fail
+B: sleep 0 * n, volunteer for 2, start
+
+A: sleep 1 * n, volunteer for 3, start
+B: sleep 1 * n, volunteer for 3, fail
+
+A: sleep 2 * n, volunteer for 4, fail
+B: sleep 1 * n, volunteer for 4, start
+
+A: sleep 2 * n, volunteer for 5, start
+B: sleep 2 * n, volunteer for 5, fail
+
+A: sleep 3 * n, volunteer for 6, fail
+B: sleep 2 * n, volunteer for 6, start
+
+...
+
+A: sleep 49 * n, start 99th
+B: sleep 49 * n, start 100th
+```
 
 ## Initial Findings
 
