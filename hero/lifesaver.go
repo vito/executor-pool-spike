@@ -4,33 +4,29 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
-	"github.com/coreos/etcd/store"
 	"github.com/coreos/go-etcd/etcd"
 
 	"github.com/vito/executor-pool-spike/node"
 )
 
 func SaveLives(etcd *etcd.Client, node node.Node) {
-	deadInstances := make(chan *store.Response)
-	stop := make(chan bool)
+	since := uint64(0)
 
-	go func() {
-		for {
-			change := <-deadInstances
+	for {
+		change, err := etcd.Watch("/apps", since, nil, nil)
+		if err != nil {
+			fmt.Println("\x1b[91mwatch failed; resting up\x1b[0m")
+			time.Sleep(1 * time.Second)
+			continue
+		}
 
-			if change.Action != "DELETE" {
-				continue
-			}
+		since = change.Index + 1
 
+		if change.Action == "DELETE" {
 			go resurrect(node, change.Key)
 		}
-	}()
-
-	_, err := etcd.Watch("/apps", 0, deadInstances, stop)
-	if err != nil {
-		panic(err)
-		return
 	}
 }
 

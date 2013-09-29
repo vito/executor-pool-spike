@@ -32,13 +32,9 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	node := node.NewNode(store)
+	node := node.NewNode(store, time.Duration(*heartbeatInterval)*time.Second)
 
 	go hero.SaveLives(store, node)
-
-	if *heartbeatInterval != 0 {
-		go node.HeartbeatRegistry(time.Duration(*heartbeatInterval) * time.Second)
-	}
 
 	_, err = nats.Subscribe("app.start", func(msg *yagnats.Message) {
 		var startMsg messages.AppStart
