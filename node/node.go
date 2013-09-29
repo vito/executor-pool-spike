@@ -5,9 +5,9 @@ import (
 	"math/rand"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/coreos/etcd/store"
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/nu7hatch/gouuid"
 )
@@ -17,7 +17,11 @@ type Node struct {
 
 	starts chan Instance
 
+	registry map[string]map[int]Instance
+
 	store *etcd.Client
+
+	sync.RWMutex
 }
 
 func NewNode(store *etcd.Client) Node {
@@ -31,6 +35,8 @@ func NewNode(store *etcd.Client) Node {
 
 		starts: make(chan Instance),
 
+		registry: make(map[string]map[int]Instance),
+
 		store: store,
 	}
 
@@ -40,10 +46,23 @@ func NewNode(store *etcd.Client) Node {
 }
 
 func (node Node) StartApp(app string, index int) {
-	node.starts <- Instance{app, index}
+	node.Lock()
+	defer node.Unlock()
+
+	node.starts <- Instance{app, index, false}
+}
+
+func (node Node) StopApp(app string, index int) {
+	node.Lock()
+	defer node.Unlock()
+
+	node.killInstance(Instance{app, index, false})
 }
 
 func (node Node) HeartbeatRegistry(interval time.Duration) {
+	node.RLock()
+	defer node.RUnlock()
+
 	ttl := uint64(interval * 3 / time.Second)
 
 	for {
@@ -51,32 +70,22 @@ func (node Node) HeartbeatRegistry(interval time.Duration) {
 
 		fmt.Println("\x1b[93mheartbeating\x1b[0m")
 
-		instances, err := node.allInstances()
-		if err != nil {
-			continue
-		}
-
-		for _, inst := range instances {
-			node.store.Set(inst.Key, inst.Value, ttl)
-
-			path := strings.Split(inst.Key, "/")
-			healthKey := fmt.Sprintf("/apps/%s/%s", path[4], path[5])
-
-			node.store.Set(healthKey, "ok", ttl)
+		for _, inst := range node.allInstances() {
+			node.store.Set(inst.StoreKey(), "ok", ttl)
 		}
 	}
 }
 
 func (node Node) LogRegistry() {
-	instances, err := node.allInstances()
-	if err != nil {
-		return
-	}
+	node.RLock()
+	defer node.RUnlock()
+
+	instances := node.allInstances()
 
 	bar := []string{}
 
 	for _, inst := range instances {
-		if inst.TTL != 0 {
+		if inst.MarkedForDeath {
 			bar = append(bar, "\x1b[31m▇\x1b[0m")
 		} else {
 			bar = append(bar, "▇")
@@ -93,9 +102,9 @@ func (node Node) handleStarts() {
 }
 
 func (node Node) startInstance(instance Instance) {
-	instances, err := node.instancesOf(instance.App)
+	instances := node.instancesOf(instance.App)
 
-	if err == nil {
+	if len(instances) > 0 {
 		count := len(instances)
 
 		delay := time.Duration(count) * 10 * time.Millisecond
@@ -105,18 +114,7 @@ func (node Node) startInstance(instance Instance) {
 		time.Sleep(delay)
 	}
 
-	var lifespan uint64
-
-	// make 25% of them crash after a random amount of time
-	//
-	// because that's more interesting
-	if rand.Intn(4) == 0 {
-		lifespan = uint64(5 * rand.Intn(10))
-	} else {
-		lifespan = 0
-	}
-
-	ok := node.volunteer(instance, lifespan)
+	ok := node.volunteer(instance)
 	if !ok {
 		fmt.Println("\x1b[31mdropped\x1b[0m", instance.Index)
 		return
@@ -124,39 +122,52 @@ func (node Node) startInstance(instance Instance) {
 
 	fmt.Println("\x1b[32mstarted\x1b[0m", instance.Index)
 
-	node.registerInstance(instance, lifespan)
-}
+	// make 25% of them crash after a random amount of time
+	//
+	// because that's more interesting
+	if rand.Intn(4) == 0 {
+		instance.MarkedForDeath = true
 
-func (node Node) instancesOf(app string) ([]*store.Response, error) {
-	return node.store.Get(fmt.Sprintf("/node/%s/apps/%s", node.ID, app))
-}
-
-func (node Node) allInstances() ([]*store.Response, error) {
-	apps, err := node.store.Get(fmt.Sprintf("/node/%s/apps", node.ID))
-	if err != nil {
-		return nil, err
+		go func() {
+			time.Sleep(time.Duration(5*rand.Intn(10)) * time.Second)
+			node.StopApp(instance.App, instance.Index)
+		}()
 	}
 
-	instances := []*store.Response{}
-
-	for _, app := range apps {
-		appInstances, err := node.store.Get(app.Key)
-		if err != nil {
-			continue
-		}
-
-		instances = append(instances, appInstances...)
-	}
-
-	return instances, nil
+	node.registerInstance(instance)
 }
 
-func (node Node) volunteer(instance Instance, ttl uint64) bool {
+func (node Node) instancesOf(app string) []Instance {
+	instances := []Instance{}
+
+	indices, found := node.registry[app]
+	if !found {
+		return instances
+	}
+
+	for _, instance := range indices {
+		instances = append(instances, instance)
+	}
+
+	return instances
+}
+
+func (node Node) allInstances() []Instance {
+	instances := []Instance{}
+
+	for app, _ := range node.registry {
+		instances = append(instances, node.instancesOf(app)...)
+	}
+
+	return instances
+}
+
+func (node Node) volunteer(instance Instance) bool {
 	_, ok, err := node.store.TestAndSet(
 		instance.StoreKey(),
 		"",
 		"ok",
-		ttl,
+		0,
 	)
 
 	if err != nil {
@@ -166,11 +177,23 @@ func (node Node) volunteer(instance Instance, ttl uint64) bool {
 	return ok
 }
 
-func (node Node) registerInstance(instance Instance, ttl uint64) {
-	ownerKey := fmt.Sprintf("/node/%s/apps/%s/%d", node.ID, instance.App, instance.Index)
+func (node Node) registerInstance(instance Instance) {
+	instances, found := node.registry[instance.App]
 
-	_, err := node.store.Set(ownerKey, "ok", ttl)
-	if err != nil {
-		fmt.Println("error setting owner:", err)
+	if found {
+		instances[instance.Index] = instance
+	} else {
+		node.registry[instance.App] = map[int]Instance{instance.Index: instance}
 	}
+}
+
+func (node Node) killInstance(instance Instance) {
+	indices, found := node.registry[instance.App]
+	if !found {
+		return
+	}
+
+	delete(indices, instance.Index)
+
+	node.store.Delete(instance.StoreKey())
 }

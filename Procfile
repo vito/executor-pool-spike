@@ -1,1 +1,1 @@
-node: ./reviving-node -heartbeatInterval=0
+node: ./reviving-node

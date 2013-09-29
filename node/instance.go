@@ -7,6 +7,8 @@ import (
 type Instance struct {
 	App   string
 	Index int
+
+	MarkedForDeath bool
 }
 
 func (i Instance) StoreKey() string {
