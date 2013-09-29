@@ -12,7 +12,7 @@ import (
 	"github.com/vito/executor-pool-spike/starter"
 )
 
-func SaveLives(etcd *etcd.Client, startHandler starter.Starter) {
+func SaveLives(etcd *etcd.Client, startHandler *starter.Starter) {
 	since := uint64(0)
 
 	for {
@@ -31,7 +31,7 @@ func SaveLives(etcd *etcd.Client, startHandler starter.Starter) {
 	}
 }
 
-func resurrect(startHandler starter.Starter, key string) {
+func resurrect(startHandler *starter.Starter, key string) {
 	fmt.Println(ansi.Color("CRASH!", "red+B:white+h"), key)
 
 	path := strings.Split(key, "/")
