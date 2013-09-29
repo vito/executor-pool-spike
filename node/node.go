@@ -80,7 +80,7 @@ func (node Node) startInstance(instance Instance) {
 	if err == nil {
 		count := len(instances)
 
-		delay := time.Duration(count) * time.Millisecond
+		delay := time.Duration(count) * 10 * time.Millisecond
 
 		fmt.Println("\x1b[33mhesitating\x1b[0m", delay)
 
