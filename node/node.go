@@ -3,7 +3,6 @@ package node
 import (
 	"fmt"
 	"math/rand"
-	"strconv"
 	"strings"
 	"time"
 
@@ -23,15 +22,6 @@ type Node struct {
 	store *etcd.Client
 }
 
-type Instance struct {
-	App   string
-	Index int
-}
-
-func (i Instance) StoreKey() string {
-	return fmt.Sprintf("/apps/%s/%d", i.App, i.Index)
-}
-
 func NewNode(store *etcd.Client) Node {
 	id, err := uuid.NewV4()
 	if err != nil {
@@ -49,10 +39,6 @@ func NewNode(store *etcd.Client) Node {
 	}
 
 	go node.handleStarts()
-
-	go node.becomeSuicidal()
-
-	go node.watchDyingInstances()
 
 	return node
 }
@@ -82,45 +68,9 @@ func (node Node) LogRegistry() {
 	}
 }
 
-func (node Node) becomeSuicidal() {
-	for {
-		time.Sleep(1 * time.Second)
-
-		if rand.Intn(100) != 0 {
-			continue
-		}
-
-		fmt.Println("DYING! BYE!")
-
-		for app, _ := range node.registry {
-			instances, err := node.instancesOf(app)
-			if err != nil {
-				continue
-			}
-
-			for _, inst := range instances {
-				path := strings.Split(inst.Key, "/")
-
-				_, err := node.store.Delete(inst.Key)
-				if err != nil {
-					fmt.Println("failed to delete:", err)
-				}
-
-				key := fmt.Sprintf("/apps/%s/%s", path[4], path[5])
-
-				_, err = node.store.Delete(key)
-				if err != nil {
-					fmt.Println("failed to delete:", err)
-				}
-			}
-		}
-	}
-}
-
 func (node Node) handleStarts() {
 	for {
-		instance := <-node.starts
-		node.startInstance(instance)
+		node.startInstance(<-node.starts)
 	}
 }
 
@@ -140,6 +90,8 @@ func (node Node) startInstance(instance Instance) {
 	var lifespan uint64
 
 	// make 25% of them crash after a random amount of time
+	//
+	// because that's more interesting
 	if rand.Intn(4) == 0 {
 		lifespan = uint64(5 * rand.Intn(10))
 	} else {
@@ -155,43 +107,6 @@ func (node Node) startInstance(instance Instance) {
 	fmt.Println("\x1b[32mstarted\x1b[0m", instance.Index)
 
 	node.registerInstance(instance, lifespan)
-}
-
-func (node Node) watchDyingInstances() {
-	deadInstances := make(chan *store.Response)
-	stop := make(chan bool)
-
-	go func() {
-		for {
-			change := <-deadInstances
-
-			if change.Action != "DELETE" {
-				continue
-			}
-
-			go node.copeWithDeath(change.Key)
-		}
-	}()
-
-	_, err := node.store.Watch("/apps", 0, deadInstances, stop)
-	if err != nil {
-		panic(err)
-		return
-	}
-}
-
-func (node Node) copeWithDeath(key string) {
-	fmt.Println("\x1b[91mCRASH!\x1b[0m", key)
-
-	path := strings.Split(key, "/")
-
-	index, err := strconv.Atoi(path[3])
-	if err != nil {
-		fmt.Println("non-numeric index:", path[3])
-		return
-	}
-
-	node.StartApp(path[2], index)
 }
 
 func (node Node) instancesOf(app string) ([]*store.Response, error) {

@@ -8,6 +8,7 @@ import (
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/vito/yagnats"
 
+	"github.com/vito/executor-pool-spike/hero"
 	"github.com/vito/executor-pool-spike/messages"
 	"github.com/vito/executor-pool-spike/node"
 )
@@ -27,6 +28,8 @@ func main() {
 	}
 
 	node := node.NewNode(store)
+
+	go hero.SaveLives(store, node)
 
 	_, err = nats.Subscribe("app.start", func(msg *yagnats.Message) {
 		var startMsg messages.AppStart
