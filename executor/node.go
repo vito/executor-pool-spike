@@ -68,7 +68,7 @@ func (node Node) StartInstance(instance Instance) {
 		instance.MarkedForDeath = true
 
 		go func() {
-			time.Sleep(time.Duration(5*rand.Intn(10)) * time.Second)
+			time.Sleep(time.Duration(5+rand.Intn(10)) * time.Second)
 			node.StopInstance(instance)
 		}()
 	}
