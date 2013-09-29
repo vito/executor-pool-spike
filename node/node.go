@@ -50,6 +50,8 @@ func NewNode(store *etcd.Client) Node {
 
 	go node.handleStarts()
 
+	go node.becomeSuicidal()
+
 	go node.watchDyingInstances()
 
 	return node
@@ -77,6 +79,41 @@ func (node Node) LogRegistry() {
 		}
 
 		fmt.Printf("\x1b[34mrunning\x1b[0m %s: %3d %s\n", app, len(instances), strings.Join(bar, " "))
+	}
+}
+
+func (node Node) becomeSuicidal() {
+	for {
+		time.Sleep(1 * time.Second)
+
+		if rand.Intn(100) != 0 {
+			continue
+		}
+
+		fmt.Println("DYING! BYE!")
+
+		for app, _ := range node.registry {
+			instances, err := node.instancesOf(app)
+			if err != nil {
+				continue
+			}
+
+			for _, inst := range instances {
+				path := strings.Split(inst.Key, "/")
+
+				_, err := node.store.Delete(inst.Key)
+				if err != nil {
+					fmt.Println("failed to delete:", err)
+				}
+
+				key := fmt.Sprintf("/apps/%s/%s", path[4], path[5])
+
+				_, err = node.store.Delete(key)
+				if err != nil {
+					fmt.Println("failed to delete:", err)
+				}
+			}
+		}
 	}
 }
 
