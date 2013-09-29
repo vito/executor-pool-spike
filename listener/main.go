@@ -9,9 +9,10 @@ import (
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/vito/yagnats"
 
+	"github.com/vito/executor-pool-spike/executor"
 	"github.com/vito/executor-pool-spike/hero"
 	"github.com/vito/executor-pool-spike/messages"
-	"github.com/vito/executor-pool-spike/node"
+	"github.com/vito/executor-pool-spike/starter"
 )
 
 var heartbeatInterval = flag.Int("heartbeatInterval", 10, "heartbeat interval")
@@ -32,9 +33,11 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	node := node.NewNode(store, time.Duration(*heartbeatInterval)*time.Second)
+	node := executor.NewNode(store, time.Duration(*heartbeatInterval)*time.Second)
 
-	go hero.SaveLives(store, node)
+	starter := starter.NewStarter(node)
+
+	go hero.SaveLives(store, starter)
 
 	_, err = nats.Subscribe("app.start", func(msg *yagnats.Message) {
 		var startMsg messages.AppStart
@@ -44,7 +47,7 @@ func main() {
 			return
 		}
 
-		node.StartApp(startMsg.Guid, startMsg.Index)
+		starter.Start(startMsg.Guid, startMsg.Index)
 	})
 
 	if err != nil {

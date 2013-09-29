@@ -1,4 +1,4 @@
-package node
+package executor
 
 import (
 	"fmt"
@@ -17,9 +17,7 @@ type Node struct {
 
 	heartbeatInterval time.Duration
 
-	starts chan Instance
-
-	registry Registry
+	registry *Registry
 
 	store *etcd.Client
 }
@@ -35,14 +33,10 @@ func NewNode(store *etcd.Client, heartbeatInterval time.Duration) Node {
 
 		heartbeatInterval: heartbeatInterval,
 
-		starts: make(chan Instance),
-
 		registry: NewRegistry(),
 
 		store: store,
 	}
-
-	go node.handleStarts()
 
 	if heartbeatInterval != 0 {
 		go node.heartbeatRegistry()
@@ -51,54 +45,7 @@ func NewNode(store *etcd.Client, heartbeatInterval time.Duration) Node {
 	return node
 }
 
-func (node Node) StartApp(app string, index int) {
-	node.starts <- Instance{app, index, false}
-}
-
-func (node Node) StopApp(app string, index int) {
-	node.stopInstance(Instance{app, index, false})
-}
-
-func (node Node) LogRegistry() {
-	instances := node.registry.AllInstances()
-
-	bar := []string{}
-
-	for _, inst := range instances {
-		if inst.MarkedForDeath {
-			bar = append(bar, ansi.Color("▇", "red"))
-		} else {
-			bar = append(bar, "▇")
-		}
-	}
-
-	fmt.Printf("%s %d: %3d %s\n", ansi.Color("running", "blue"), os.Getpid(), len(instances), strings.Join(bar, " "))
-}
-
-func (node Node) heartbeatRegistry() {
-	interval := node.heartbeatInterval
-
-	ttl := uint64(interval * 3 / time.Second)
-
-	for {
-		time.Sleep(interval)
-
-		fmt.Println(ansi.Color("heartbeating", "yellow"))
-
-		for _, inst := range node.registry.AllInstances() {
-			node.store.Set(inst.StoreKey(), "ok", ttl)
-		}
-
-	}
-}
-
-func (node Node) handleStarts() {
-	for {
-		node.startInstance(<-node.starts)
-	}
-}
-
-func (node Node) startInstance(instance Instance) {
+func (node Node) StartInstance(instance Instance) {
 	instances := node.registry.InstancesOf(instance.App)
 
 	delay := 10 * time.Duration(len(instances)) * time.Millisecond
@@ -122,16 +69,32 @@ func (node Node) startInstance(instance Instance) {
 
 		go func() {
 			time.Sleep(time.Duration(5*rand.Intn(10)) * time.Second)
-			node.StopApp(instance.App, instance.Index)
+			node.StopInstance(instance)
 		}()
 	}
 
 	node.registry.Register(instance)
 }
 
-func (node Node) stopInstance(instance Instance) {
+func (node Node) StopInstance(instance Instance) {
 	node.registry.Unregister(instance)
 	node.store.Delete(instance.StoreKey())
+}
+
+func (node Node) LogRegistry() {
+	instances := node.registry.AllInstances()
+
+	bar := []string{}
+
+	for _, inst := range instances {
+		if inst.MarkedForDeath {
+			bar = append(bar, ansi.Color("▇", "red"))
+		} else {
+			bar = append(bar, "▇")
+		}
+	}
+
+	fmt.Printf("%s %d: %3d %s\n", ansi.Color("running", "blue"), os.Getpid(), len(instances), strings.Join(bar, " "))
 }
 
 func (node Node) volunteer(instance Instance) bool {
@@ -147,4 +110,21 @@ func (node Node) volunteer(instance Instance) bool {
 	}
 
 	return ok
+}
+
+func (node Node) heartbeatRegistry() {
+	interval := node.heartbeatInterval
+
+	ttl := uint64(interval * 3 / time.Second)
+
+	for {
+		time.Sleep(interval)
+
+		fmt.Println(ansi.Color("heartbeating", "yellow"))
+
+		for _, inst := range node.registry.AllInstances() {
+			node.store.Set(inst.StoreKey(), "ok", ttl)
+		}
+
+	}
 }

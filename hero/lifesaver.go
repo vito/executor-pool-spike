@@ -9,10 +9,10 @@ import (
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/mgutz/ansi"
 
-	"github.com/vito/executor-pool-spike/node"
+	"github.com/vito/executor-pool-spike/starter"
 )
 
-func SaveLives(etcd *etcd.Client, node node.Node) {
+func SaveLives(etcd *etcd.Client, startHandler *starter.Starter) {
 	since := uint64(0)
 
 	for {
@@ -26,12 +26,12 @@ func SaveLives(etcd *etcd.Client, node node.Node) {
 		since = change.Index + 1
 
 		if change.Action == "DELETE" {
-			go resurrect(node, change.Key)
+			go resurrect(startHandler, change.Key)
 		}
 	}
 }
 
-func resurrect(node node.Node, key string) {
+func resurrect(startHandler *starter.Starter, key string) {
 	fmt.Println(ansi.Color("CRASH!", "red+B:white+h"), key)
 
 	path := strings.Split(key, "/")
@@ -42,5 +42,5 @@ func resurrect(node node.Node, key string) {
 		return
 	}
 
-	node.StartApp(path[2], index)
+	startHandler.Start(path[2], index)
 }

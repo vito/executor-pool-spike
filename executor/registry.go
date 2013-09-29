@@ -1,4 +1,4 @@
-package node
+package executor
 
 import (
 	"sync"
@@ -10,13 +10,13 @@ type Registry struct {
 	sync.RWMutex
 }
 
-func NewRegistry() Registry {
-	return Registry{
+func NewRegistry() *Registry {
+	return &Registry{
 		registry: make(map[string]map[int]Instance),
 	}
 }
 
-func (r Registry) Register(instance Instance) {
+func (r *Registry) Register(instance Instance) {
 	r.Lock()
 	defer r.Unlock()
 
@@ -29,7 +29,7 @@ func (r Registry) Register(instance Instance) {
 	}
 }
 
-func (r Registry) Unregister(instance Instance) {
+func (r *Registry) Unregister(instance Instance) {
 	r.Lock()
 	defer r.Unlock()
 
@@ -41,7 +41,7 @@ func (r Registry) Unregister(instance Instance) {
 	delete(indices, instance.Index)
 }
 
-func (r Registry) InstancesOf(app string) []Instance {
+func (r *Registry) InstancesOf(app string) []Instance {
 	r.RLock()
 	defer r.RUnlock()
 
@@ -59,7 +59,7 @@ func (r Registry) InstancesOf(app string) []Instance {
 	return instances
 }
 
-func (r Registry) AllInstances() []Instance {
+func (r *Registry) AllInstances() []Instance {
 	r.RLock()
 	defer r.RUnlock()
 
