@@ -154,7 +154,7 @@ func (node Node) copeWithDeath(key string) {
 		return
 	}
 
-	node.startInstance(Instance{path[2], index})
+	node.StartApp(path[2], index)
 }
 
 func (node Node) instancesOf(app string) ([]*store.Response, error) {
