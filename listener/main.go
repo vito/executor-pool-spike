@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"log"
 	"time"
 
@@ -13,7 +14,11 @@ import (
 	"github.com/vito/executor-pool-spike/node"
 )
 
+var heartbeatInterval = flag.Int("heartbeatInterval", 10, "heartbeat interval")
+
 func main() {
+	flag.Parse()
+
 	store := etcd.NewClient()
 
 	nats := yagnats.NewClient()
@@ -30,6 +35,10 @@ func main() {
 	node := node.NewNode(store)
 
 	go hero.SaveLives(store, node)
+
+	if *heartbeatInterval != 0 {
+		go node.HeartbeatRegistry(time.Duration(*heartbeatInterval) * time.Second)
+	}
 
 	_, err = nats.Subscribe("app.start", func(msg *yagnats.Message) {
 		var startMsg messages.AppStart

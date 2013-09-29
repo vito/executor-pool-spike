@@ -3,6 +3,7 @@ package node
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"strings"
 	"time"
 
@@ -42,30 +43,47 @@ func (node Node) StartApp(app string, index int) {
 	node.starts <- Instance{app, index}
 }
 
-func (node Node) LogRegistry() {
-	apps, err := node.store.Get(fmt.Sprintf("/node/%s/apps", node.ID))
-	if err != nil {
-		return
-	}
+func (node Node) HeartbeatRegistry(interval time.Duration) {
+	ttl := uint64(interval * 3 / time.Second)
 
-	for _, app := range apps {
-		instances, err := node.store.Get(app.Key)
+	for {
+		time.Sleep(interval)
+
+		fmt.Println("\x1b[93mheartbeating\x1b[0m")
+
+		instances, err := node.allInstances()
 		if err != nil {
 			continue
 		}
 
-		bar := []string{}
-
 		for _, inst := range instances {
-			if inst.TTL != 0 {
-				bar = append(bar, "\x1b[31m▇\x1b[0m")
-			} else {
-				bar = append(bar, "▇")
-			}
-		}
+			node.store.Set(inst.Key, inst.Value, ttl)
 
-		fmt.Printf("\x1b[34mrunning\x1b[0m: %3d %s\n", len(instances), strings.Join(bar, " "))
+			path := strings.Split(inst.Key, "/")
+			healthKey := fmt.Sprintf("/apps/%s/%s", path[4], path[5])
+
+			node.store.Set(healthKey, "ok", ttl)
+		}
 	}
+}
+
+func (node Node) LogRegistry() {
+	instances, err := node.allInstances()
+	if err != nil {
+		return
+	}
+
+	bar := []string{}
+
+	for _, inst := range instances {
+		if inst.TTL != 0 {
+			bar = append(bar, "\x1b[31m▇\x1b[0m")
+		} else {
+			bar = append(bar, "▇")
+		}
+	}
+
+	fmt.Printf("\x1b[34mrunning\x1b[0m %d: %3d %s\n", os.Getpid(), len(instances), strings.Join(bar, " "))
 }
 
 func (node Node) handleStarts() {
@@ -111,6 +129,26 @@ func (node Node) startInstance(instance Instance) {
 
 func (node Node) instancesOf(app string) ([]*store.Response, error) {
 	return node.store.Get(fmt.Sprintf("/node/%s/apps/%s", node.ID, app))
+}
+
+func (node Node) allInstances() ([]*store.Response, error) {
+	apps, err := node.store.Get(fmt.Sprintf("/node/%s/apps", node.ID))
+	if err != nil {
+		return nil, err
+	}
+
+	instances := []*store.Response{}
+
+	for _, app := range apps {
+		appInstances, err := node.store.Get(app.Key)
+		if err != nil {
+			continue
+		}
+
+		instances = append(instances, appInstances...)
+	}
+
+	return instances, nil
 }
 
 func (node Node) volunteer(instance Instance, ttl uint64) bool {

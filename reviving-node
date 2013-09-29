@@ -1,0 +1,6 @@
+#!/bin/bash
+
+while true; do
+  go run listener/main.go $*
+  echo "REVIVING"
+done

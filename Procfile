@@ -1,10 +1,1 @@
-node1: go run listener/main.go
-node2: go run listener/main.go
-node3: go run listener/main.go
-node4: go run listener/main.go
-node5: go run listener/main.go
-node6: go run listener/main.go
-node7: go run listener/main.go
-node8: go run listener/main.go
-node9: go run listener/main.go
-node10: go run listener/main.go
+node: ./reviving-node -heartbeatInterval=0
