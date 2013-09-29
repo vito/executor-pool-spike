@@ -103,7 +103,7 @@ func (node Node) startInstance(instance Instance) {
 	var lifespan uint64
 
 	// make 25% of them crash after a random amount of time
-	if rand.Intn(3) == 0 {
+	if rand.Intn(4) == 0 {
 		lifespan = uint64(5 * rand.Intn(10))
 	} else {
 		lifespan = 0
