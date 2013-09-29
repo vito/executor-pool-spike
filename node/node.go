@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-etcd/etcd"
+	"github.com/mgutz/ansi"
 	"github.com/nu7hatch/gouuid"
 )
 
@@ -65,13 +66,13 @@ func (node Node) LogRegistry() {
 
 	for _, inst := range instances {
 		if inst.MarkedForDeath {
-			bar = append(bar, "\x1b[31m▇\x1b[0m")
+			bar = append(bar, ansi.Color("▇", "red"))
 		} else {
 			bar = append(bar, "▇")
 		}
 	}
 
-	fmt.Printf("\x1b[34mrunning\x1b[0m %d: %3d %s\n", os.Getpid(), len(instances), strings.Join(bar, " "))
+	fmt.Printf("%s %d: %3d %s\n", ansi.Color("running", "blue"), os.Getpid(), len(instances), strings.Join(bar, " "))
 }
 
 func (node Node) heartbeatRegistry() {
@@ -82,7 +83,7 @@ func (node Node) heartbeatRegistry() {
 	for {
 		time.Sleep(interval)
 
-		fmt.Println("\x1b[93mheartbeating\x1b[0m")
+		fmt.Println(ansi.Color("heartbeating", "yellow"))
 
 		for _, inst := range node.registry.AllInstances() {
 			node.store.Set(inst.StoreKey(), "ok", ttl)
@@ -100,23 +101,18 @@ func (node Node) handleStarts() {
 func (node Node) startInstance(instance Instance) {
 	instances := node.registry.InstancesOf(instance.App)
 
-	if len(instances) > 0 {
-		count := len(instances)
+	delay := 10 * time.Duration(len(instances)) * time.Millisecond
 
-		delay := time.Duration(count) * 10 * time.Millisecond
-
-		fmt.Println("\x1b[33mhesitating\x1b[0m", delay)
-
-		time.Sleep(delay)
-	}
+	fmt.Println(ansi.Color("hesitating", "yellow"), delay)
+	time.Sleep(delay)
 
 	ok := node.volunteer(instance)
 	if !ok {
-		fmt.Println("\x1b[31mdropped\x1b[0m", instance.Index)
+		fmt.Println(ansi.Color("dropped", "red"), instance.Index)
 		return
 	}
 
-	fmt.Println("\x1b[32mstarted\x1b[0m", instance.Index)
+	fmt.Println(ansi.Color("started", "green"), instance.Index)
 
 	// make 25% of them crash after a random amount of time
 	//

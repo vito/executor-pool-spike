@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-etcd/etcd"
+	"github.com/mgutz/ansi"
 
 	"github.com/vito/executor-pool-spike/node"
 )
@@ -17,7 +18,7 @@ func SaveLives(etcd *etcd.Client, node node.Node) {
 	for {
 		change, err := etcd.Watch("/apps", since, nil, nil)
 		if err != nil {
-			fmt.Println("\x1b[91mwatch failed; resting up\x1b[0m")
+			fmt.Println(ansi.Color("watch failed; resting up", "red"))
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -31,7 +32,7 @@ func SaveLives(etcd *etcd.Client, node node.Node) {
 }
 
 func resurrect(node node.Node, key string) {
-	fmt.Println("\x1b[91mCRASH!\x1b[0m", key)
+	fmt.Println(ansi.Color("CRASH!", "red+B:white+h"), key)
 
 	path := strings.Split(key, "/")
 
