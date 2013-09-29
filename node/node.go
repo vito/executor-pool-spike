@@ -14,9 +14,6 @@ import (
 type Node struct {
 	ID string
 
-	// map from app IDs to indexes
-	registry map[string][]int
-
 	starts chan Instance
 
 	store *etcd.Client
@@ -30,8 +27,6 @@ func NewNode(store *etcd.Client) Node {
 
 	node := Node{
 		ID: id.String(),
-
-		registry: map[string][]int{},
 
 		starts: make(chan Instance),
 
@@ -48,8 +43,13 @@ func (node Node) StartApp(app string, index int) {
 }
 
 func (node Node) LogRegistry() {
-	for app, _ := range node.registry {
-		instances, err := node.instancesOf(app)
+	apps, err := node.store.Get(fmt.Sprintf("/node/%s/apps", node.ID))
+	if err != nil {
+		return
+	}
+
+	for _, app := range apps {
+		instances, err := node.store.Get(app.Key)
 		if err != nil {
 			continue
 		}
@@ -64,7 +64,7 @@ func (node Node) LogRegistry() {
 			}
 		}
 
-		fmt.Printf("\x1b[34mrunning\x1b[0m %s: %3d %s\n", app, len(instances), strings.Join(bar, " "))
+		fmt.Printf("\x1b[34mrunning\x1b[0m: %3d %s\n", len(instances), strings.Join(bar, " "))
 	}
 }
 
@@ -80,7 +80,7 @@ func (node Node) startInstance(instance Instance) {
 	if err == nil {
 		count := len(instances)
 
-		delay := time.Duration(count) * 10 * time.Millisecond
+		delay := time.Duration(count) * time.Millisecond
 
 		fmt.Println("\x1b[33mhesitating\x1b[0m", delay)
 
@@ -134,12 +134,5 @@ func (node Node) registerInstance(instance Instance, ttl uint64) {
 	_, err := node.store.Set(ownerKey, "ok", ttl)
 	if err != nil {
 		fmt.Println("error setting owner:", err)
-	}
-
-	indices, found := node.registry[instance.App]
-	if found {
-		node.registry[instance.App] = append(indices, instance.Index)
-	} else {
-		node.registry[instance.App] = []int{instance.Index}
 	}
 }
