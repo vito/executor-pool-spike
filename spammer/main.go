@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/coreos/go-etcd/etcd"
@@ -17,13 +18,21 @@ import (
 var app = flag.String("app", "", "app identifier (default: random guid)")
 var instances = flag.Int("instances", 100, "instances to start")
 
+var natsAddr = flag.String("natsAddr", "localhost:4222", "NATS server address")
+var natsUser = flag.String("natsUser", "", "NATS server username")
+var natsPass = flag.String("natsPass", "", "NATS server password")
+
+var etcdCluster = flag.String("etcdCluster", "http://127.0.0.1:4001", "ETCD servers (comma-separated)")
+
 func main() {
 	flag.Parse()
 
 	nats := yagnats.NewClient()
 
 	natsInfo := &yagnats.ConnectionInfo{
-		Addr: "localhost:4222",
+		Addr:     *natsAddr,
+		Username: *natsUser,
+		Password: *natsPass,
 	}
 
 	err := nats.Connect(natsInfo)
@@ -41,6 +50,11 @@ func main() {
 	}
 
 	store := etcd.NewClient()
+
+	ok := store.SetCluster(strings.Split(*etcdCluster, ","))
+	if !ok {
+		log.Fatalln("Could not sync with etcd cluster:", *etcdCluster)
+	}
 
 	start := time.Now()
 
