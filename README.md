@@ -16,14 +16,14 @@ go get -v ./...
 # start nats
 nats-server -d
 
-# start etcd
+# start etcd in one window
 etcd
 
-# start 10 nodes
-foreman start
+# start 10 nodes in another window
+foreman start -c node=10
 
-# in another tab, send 100 app.starts:
-go run spammer/main.go
+# in another window, send 100 app.starts:
+go run spammer/main.go -instances=100
 
 # check the distribution in the logs of 'foreman start'
 ```
