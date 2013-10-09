@@ -2,11 +2,13 @@ package executor
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/coreos/etcd/store"
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/mgutz/ansi"
 	"github.com/nu7hatch/gouuid"
@@ -46,12 +48,11 @@ func NewNode(store *etcd.Client, heartbeatInterval time.Duration) Node {
 }
 
 func (node Node) StartInstance(instance Instance) {
-	instances := node.registry.InstancesOf(instance.App)
-
-	delay := 10 * time.Duration(len(instances)) * time.Millisecond
-
-	fmt.Println(ansi.Color("hesitating", "yellow"), delay)
-	time.Sleep(delay)
+	stolen := node.hesitate(instance)
+	if stolen {
+		fmt.Println(ansi.Color("yoinked", "yellow"), instance.Index)
+		return
+	}
 
 	ok := node.volunteer(instance)
 	if !ok {
@@ -94,7 +95,26 @@ func (node Node) LogRegistry() {
 		}
 	}
 
-	fmt.Printf("%s %d: %3d %s\n", ansi.Color("running", "blue"), os.Getpid(), len(instances), strings.Join(bar, " "))
+	fmt.Printf("%s %d: %3d %s\n", ansi.Color("running", "blue"), os.Getpid(), len(instances), strings.Join(bar, ""))
+}
+
+func (node Node) hesitate(instance Instance) bool {
+	instances := node.registry.InstancesOf(instance.App)
+
+	stolen := make(chan *store.Response)
+
+	delay := time.Duration(int(10.0*math.Pow(float64(len(instances)), 0.2))) * time.Millisecond
+
+	fmt.Println(ansi.Color("hesitating", "yellow"), instance.Index, delay)
+
+	go node.store.Watch(instance.StoreKey(), 0, stolen, nil)
+
+	select {
+	case <-stolen:
+		return true
+	case <-time.After(delay):
+		return false
+	}
 }
 
 func (node Node) volunteer(instance Instance) bool {
