@@ -49,12 +49,7 @@ func main() {
 		*app = guid.String()
 	}
 
-	store := etcd.NewClient()
-
-	ok := store.SetCluster(strings.Split(*etcdCluster, ","))
-	if !ok {
-		log.Fatalln("Could not sync with etcd cluster:", *etcdCluster)
-	}
+	store := etcd.NewClient(strings.Split(*etcdCluster, ","))
 
 	start := time.Now()
 

@@ -27,12 +27,7 @@ var etcdCluster = flag.String("etcdCluster", "http://127.0.0.1:4001", "ETCD serv
 func main() {
 	flag.Parse()
 
-	store := etcd.NewClient()
-
-	ok := store.SetCluster(strings.Split(*etcdCluster, ","))
-	if !ok {
-		log.Fatalln("Could not sync with etcd cluster:", *etcdCluster)
-	}
+	store := etcd.NewClient(strings.Split(*etcdCluster, ","))
 
 	nats := yagnats.NewClient()
 
