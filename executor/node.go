@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/etcd/store"
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/mgutz/ansi"
 	"github.com/nu7hatch/gouuid"
@@ -101,7 +100,7 @@ func (node Node) LogRegistry() {
 func (node Node) hesitate(instance Instance) bool {
 	instances := node.registry.InstancesOf(instance.App)
 
-	stolen := make(chan *store.Response)
+	stolen := make(chan *etcd.Response)
 
 	delay := time.Duration(int(10.0*math.Pow(float64(len(instances)), 0.2))) * time.Millisecond
 
