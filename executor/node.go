@@ -2,7 +2,6 @@ package executor
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 	"strings"
@@ -102,7 +101,7 @@ func (node Node) hesitate(instance Instance) bool {
 
 	stolen := make(chan *etcd.Response)
 
-	delay := time.Duration(int(10.0*math.Pow(float64(len(instances)), 0.2))) * time.Millisecond
+	delay := 10 * time.Duration(len(instances)) * time.Millisecond
 
 	fmt.Println(ansi.Color("hesitating", "yellow"), instance.Index, delay)
 
