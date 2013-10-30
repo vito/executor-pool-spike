@@ -16,7 +16,7 @@ func SaveLives(etcd *etcd.Client, startHandler *starter.Starter) {
 	since := uint64(0)
 
 	for {
-		change, err := etcd.Watch("/apps", since, nil, nil)
+		change, err := etcd.WatchAll("/apps", since, nil, nil)
 		if err != nil {
 			fmt.Println(ansi.Color("watch failed; resting up", "red"))
 			time.Sleep(1 * time.Second)
@@ -25,7 +25,7 @@ func SaveLives(etcd *etcd.Client, startHandler *starter.Starter) {
 
 		since = change.Index + 1
 
-		if change.Action == "DELETE" {
+		if change.Action == "delete" || change.Action == "expire" {
 			go resurrect(startHandler, change.Key)
 		}
 	}

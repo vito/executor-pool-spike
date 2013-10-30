@@ -116,18 +116,13 @@ func (node Node) hesitate(instance Instance) bool {
 }
 
 func (node Node) volunteer(instance Instance) bool {
-	_, ok, err := node.store.TestAndSet(
+	_, err := node.store.Create(
 		instance.StoreKey(),
-		"",
 		"ok",
 		uint64(node.heartbeatInterval*3/time.Second),
 	)
 
-	if err != nil {
-		return false
-	}
-
-	return ok
+	return err == nil
 }
 
 func (node Node) heartbeatRegistry() {

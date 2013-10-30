@@ -53,13 +53,14 @@ func main() {
 
 	start := time.Now()
 
-	existing, err := store.Get(fmt.Sprintf("/apps/%s", *app))
-	if err != nil {
-		log.Println(err)
+	existingApps := 0
+	allApps, err := store.Get(fmt.Sprintf("/apps/%s", *app), false)
+	if err == nil {
+		existingApps = len(allApps.Kvs)
 	}
 
 	go func() {
-		for i := len(existing); i < *instances; i++ {
+		for i := existingApps; i < *instances; i++ {
 			start := messages.AppStart{
 				Guid:  *app,
 				Index: i,
@@ -75,14 +76,17 @@ func main() {
 	}()
 
 	for {
-		res, err := store.Get(fmt.Sprintf("/apps/%s", *app))
+		res, err := store.Get(fmt.Sprintf("/apps/%s", *app), false)
 		if err != nil {
 			log.Println(err)
+			continue
 		}
 
-		log.Println("entries:", len(res))
+		log.Println("entries:", len(res.Kvs))
 
-		if len(res) == *instances {
+		time.Sleep(1 * time.Second)
+
+		if len(res.Kvs) == *instances {
 			break
 		}
 	}
