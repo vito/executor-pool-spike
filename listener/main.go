@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-etcd/etcd"
-	"github.com/vito/yagnats"
+	"github.com/cloudfoundry/yagnats"
 
 	"github.com/vito/executor-pool-spike/executor"
 	"github.com/vito/executor-pool-spike/hero"

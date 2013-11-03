@@ -10,7 +10,7 @@ import (
 
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/nu7hatch/gouuid"
-	"github.com/vito/yagnats"
+	"github.com/cloudfoundry/yagnats"
 
 	"github.com/vito/executor-pool-spike/messages"
 )
