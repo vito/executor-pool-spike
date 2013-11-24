@@ -71,7 +71,7 @@ func main() {
 				log.Fatalln(err)
 			}
 
-			nats.Publish("app.start", string(msg))
+			nats.Publish("app.start", msg)
 		}
 	}()
 

@@ -23,7 +23,7 @@ func SaveLives(etcd *etcd.Client, startHandler *starter.Starter) {
 			continue
 		}
 
-		since = change.Index + 1
+		since = change.ModifiedIndex + 1
 
 		if change.Action == "delete" || change.Action == "expire" {
 			go resurrect(startHandler, change.Key)
