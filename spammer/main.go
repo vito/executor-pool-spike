@@ -54,9 +54,9 @@ func main() {
 	start := time.Now()
 
 	existingApps := 0
-	allApps, err := store.Get(fmt.Sprintf("/apps/%s", *app), false)
+	allApps, err := store.Get(fmt.Sprintf("/apps/%s", *app), false, false)
 	if err == nil {
-		existingApps = len(allApps.Kvs)
+		existingApps = allApps.Node.Nodes.Len()
 	}
 
 	go func() {
@@ -76,17 +76,17 @@ func main() {
 	}()
 
 	for {
-		res, err := store.Get(fmt.Sprintf("/apps/%s", *app), false)
+		res, err := store.Get(fmt.Sprintf("/apps/%s", *app), false, false)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 
-		log.Println("entries:", len(res.Kvs))
+		log.Println("entries:", res.Node.Nodes.Len())
 
 		time.Sleep(1 * time.Second)
 
-		if len(res.Kvs) == *instances {
+		if res.Node.Nodes.Len() == *instances {
 			break
 		}
 	}

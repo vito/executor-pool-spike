@@ -16,17 +16,17 @@ func SaveLives(etcd *etcd.Client, startHandler *starter.Starter) {
 	since := uint64(0)
 
 	for {
-		change, err := etcd.WatchAll("/apps", since, nil, nil)
+		change, err := etcd.Watch("/apps", since, true, nil, nil)
 		if err != nil {
 			fmt.Println(ansi.Color("watch failed; resting up", "red"))
 			time.Sleep(1 * time.Second)
 			continue
 		}
 
-		since = change.ModifiedIndex + 1
+		since = change.Node.ModifiedIndex + 1
 
 		if change.Action == "delete" || change.Action == "expire" {
-			go resurrect(startHandler, change.Key)
+			go resurrect(startHandler, change.Node.Key)
 		}
 	}
 }

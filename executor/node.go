@@ -77,7 +77,7 @@ func (node Node) StartInstance(instance Instance) {
 
 func (node Node) StopInstance(instance Instance) {
 	node.registry.Unregister(instance)
-	node.store.Delete(instance.StoreKey())
+	node.store.Delete(instance.StoreKey(), true)
 }
 
 func (node Node) LogRegistry() {
@@ -105,7 +105,7 @@ func (node Node) hesitate(instance Instance) bool {
 
 	fmt.Println(ansi.Color("hesitating", "yellow"), instance.Index, delay)
 
-	go node.store.Watch(instance.StoreKey(), 0, stolen, nil)
+	go node.store.Watch(instance.StoreKey(), 0, true, stolen, nil)
 
 	select {
 	case <-stolen:

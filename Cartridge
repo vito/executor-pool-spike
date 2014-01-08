@@ -1,3 +1,4 @@
 github.com/coreos/go-etcd/etcd origin/master
 github.com/mgutz/ansi origin/master
 github.com/cloudfoundry/yagnats origin/master
+github.com/nu7hatch/gouuid origin/master
